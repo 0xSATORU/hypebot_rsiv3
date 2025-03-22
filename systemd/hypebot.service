@@ -1,0 +1,14 @@
+[Unit]
+Description=Hyperliquid RSI Bot
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/hypebot_rsiv3/main.py
+WorkingDirectory=/opt/hypebot_rsiv3
+Restart=always
+User=root
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target
