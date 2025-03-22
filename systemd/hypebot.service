@@ -1,5 +1,9 @@
 [Unit]
+<<<<<<< HEAD
 Description=Hyperliquid RSI Bot
+=======
+Description=HypeBot RSI Strategy Service
+>>>>>>> 78efec8b1ea762142e6cb0b25bfea53bd9964f55
 After=network.target
 
 [Service]
