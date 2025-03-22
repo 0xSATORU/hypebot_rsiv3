@@ -6,14 +6,14 @@ WALLET = os.getenv("WALLET_ADDRESS")
 HEADERS = {"Authorization": f"Bearer {API_KEY}"}
 
 def get_rsi(symbol):
-    url = f"https://api.hype.co/v1/indicators/rsi?symbol={symbol}&interval=5m"
+    url = f"https://api.hyperliquid.xyz/v1/indicators/rsi?symbol={symbol}&interval=5m"
     res = requests.get(url, headers=HEADERS)
     if res.status_code == 200:
         return res.json()["rsi"]
     return None
 
 def get_price(symbol):
-    url = f"https://api.hype.co/v1/price?symbol={symbol}"
+    url = f"https://api.hyperliquid.xyz/v1/price?symbol={symbol}"
     res = requests.get(url, headers=HEADERS)
     if res.status_code == 200:
         return float(res.json().get("price", 0))
@@ -24,7 +24,7 @@ def place_order(symbol, side, usd_amount):
     if price == 0:
         return {"status": "error", "details": "Price unavailable"}
     size = round(usd_amount / price, 6)
-    url = "https://api.hype.co/v1/order"
+    url = "https://api.hyperliquid.xyz/v1/order"
     payload = {
         "wallet": WALLET,
         "symbol": symbol,
