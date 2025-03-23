@@ -1,44 +1,65 @@
 import os
 import requests
-<<<<<<< HEAD
 import pandas as pd
 import ta
 
 BASE_URL = "https://api.hyperliquid.xyz"
 WALLET = os.getenv("WALLET_ADDRESS")
+HYPE_API_KEY = os.getenv("HYPE_API_KEY")
+HEADERS = {"Content-Type": "application/json", "Authorization": f"Bearer {HYPE_API_KEY}"}
 
-def get_ohlcv(symbol, interval="5m"):
-    payload = {"type": "candleSnapshot", "coin": symbol, "interval": interval}
-    res = requests.post(BASE_URL + "/info", json=payload)
-    candles = res.json().get("data", [])
-    if not candles or len(candles[0]) < 6:
+def get_ohlc(symbol, interval="5m"):
+    payload = {
+        "type": "candleSnapshot",
+        "coin": symbol,
+        "interval": interval
+    }
+    try:
+        res = requests.post(BASE_URL + "/info", json=payload, headers=HEADERS)
+        candles = res.json().get("data", [])
+        if not candles:
+            print(f"[WARN] No OHLC data for {symbol}")
+            return None
+        df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df["close"] = pd.to_numeric(df["close"])
+        return df
+    except Exception as e:
+        print(f"[ERROR] get_ohlc() failed for {symbol} — {e}")
         return None
-    df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
-    df["close"] = pd.to_numeric(df["close"])
-    return df
 
-def get_rsi(symbol, period=14):
-    df = get_ohlcv(symbol)
+def get_rsi(symbol, window=14):
+    df = get_ohlc(symbol)
     if df is None or df.empty:
+        print(f"[WARN] No data to compute RSI for {symbol}")
         return None
-    rsi = ta.momentum.RSIIndicator(close=df["close"], window=period).rsi()
-    return round(rsi.iloc[-1], 2)
+    try:
+        rsi = ta.momentum.RSIIndicator(close=df["close"], window=window).rsi()
+        return round(rsi.iloc[-1], 2)
+    except Exception as e:
+        print(f"[ERROR] RSI calculation failed for {symbol} — {e}")
+        return None
 
 def get_price(symbol):
-    df = get_ohlcv(symbol)
+    df = get_ohlc(symbol)
     if df is not None and not df.empty:
         return float(df["close"].iloc[-1])
+    print(f"[WARN] Could not retrieve price for {symbol}")
     return 0
 
 def get_position_size(symbol):
     payload = {"type": "allMidsAndPositions", "user": WALLET}
-    res = requests.post(BASE_URL + "/info", json=payload)
-    if res.status_code == 200:
-        positions = res.json().get("positions", [])
-        for p in positions:
-            if p["coin"] == symbol:
-                return float(p["position"]["szi"])
-    return 0
+    try:
+        res = requests.post(BASE_URL + "/info", json=payload, headers=HEADERS)
+        if res.status_code == 200:
+            positions = res.json().get("positions", [])
+            for p in positions:
+                if p["coin"] == symbol:
+                    return float(p["position"]["szi"])
+        print(f"[INFO] No open position for {symbol}")
+        return 0
+    except Exception as e:
+        print(f"[ERROR] get_position_size() failed for {symbol} — {e}")
+        return 0
 
 def place_order(symbol, side, usd_amount=None):
     px = get_price(symbol)
@@ -64,44 +85,9 @@ def place_order(symbol, side, usd_amount=None):
         "clientOrderId": "auto-rsi"
     }
 
-    res = requests.post(BASE_URL + "/order", json=payload)
-    return res.json()
-=======
-
-API_KEY = os.getenv("HYPE_API_KEY")
-WALLET = os.getenv("WALLET_ADDRESS")
-HEADERS = {"Authorization": f"Bearer {API_KEY}"}
-
-def get_rsi(symbol):
-    url = f"https://api.hyperliquid.xyz/v1/indicators/rsi?symbol={symbol}&interval=5m"
-    res = requests.get(url, headers=HEADERS)
-    if res.status_code == 200:
-        return res.json()["rsi"]
-    return None
-
-def get_price(symbol):
-    url = f"https://api.hyperliquid.xyz/v1/price?symbol={symbol}"
-    res = requests.get(url, headers=HEADERS)
-    if res.status_code == 200:
-        return float(res.json().get("price", 0))
-    return 0
-
-def place_order(symbol, side, usd_amount):
-    price = get_price(symbol)
-    if price == 0:
-        return {"status": "error", "details": "Price unavailable"}
-    size = round(usd_amount / price, 6)
-    url = "https://api.hyperliquid.xyz/v1/order"
-    payload = {
-        "wallet": WALLET,
-        "symbol": symbol,
-        "side": side,
-        "size": size,
-        "type": "market"
-    }
-    res = requests.post(url, headers=HEADERS, json=payload)
-    return res.json()
-
-def get_clean_name(symbol):
-    return symbol.replace(":USDC", "")
->>>>>>> 78efec8b1ea762142e6cb0b25bfea53bd9964f55
+    try:
+        res = requests.post(BASE_URL + "/order", json=payload, headers=HEADERS)
+        return res.json()
+    except Exception as e:
+        print(f"[ERROR] Failed to place {side.upper()} order on {symbol} — {e}")
+        return {"status": "error", "details": str(e)}
